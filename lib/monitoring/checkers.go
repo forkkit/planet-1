@@ -68,8 +68,10 @@ type Config struct {
 	CloudProvider string
 	// NodeName is the kubernetes name of this node
 	NodeName string
-	// HighWatermark is the usage limit percentage of monitored directories and devicemapper
+	// HighWatermark is the usage limit percentage of devicemapper
 	HighWatermark uint
+	// HighWatermarkStorage is the usage limit percentage of monitored directories
+	HighWatermarkStorage uint
 	// HTTPTimeout specifies the HTTP timeout for checks
 	HTTPTimeout time.Duration
 }
@@ -217,10 +219,19 @@ func addToMaster(node agent.Agent, config *Config, etcdConfig *monitoring.ETCDCo
 			"leader.telekube.local.",
 		}, config.LocalNameservers...))
 	}
-	node.AddChecker(monitoring.NewStorageChecker(monitoring.StorageConfig{
-		Path:          constants.GravityDataDir,
-		HighWatermark: config.HighWatermark,
-	}))
+
+	storageChecker, err := monitoring.NewStorageChecker(
+		monitoring.StorageConfig{
+
+			Path:          constants.GravityDataDir,
+			HighWatermark: config.HighWatermarkStorage,
+		},
+	)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	node.AddChecker(storageChecker)
+
 	// the following checker will be no-op if docker driver is not devicemapper
 	node.AddChecker(monitoring.NewDockerDevicemapperChecker(
 		monitoring.DockerDevicemapperConfig{
@@ -305,10 +316,19 @@ func addToNode(node agent.Agent, config *Config, etcdConfig *monitoring.ETCDConf
 		NodeName:       config.NodeName,
 		CheckCondition: monitoring.CheckNodeCondition,
 	}))
-	node.AddChecker(monitoring.NewStorageChecker(monitoring.StorageConfig{
-		Path:          constants.GravityDataDir,
-		HighWatermark: config.HighWatermark,
-	}))
+
+	storageChecker, err := monitoring.NewStorageChecker(
+		monitoring.StorageConfig{
+
+			Path:          constants.GravityDataDir,
+			HighWatermark: config.HighWatermarkStorage,
+		},
+	)
+	if err != nil {
+		return trace.Wrap(err)
+	}
+	node.AddChecker(storageChecker)
+
 	// the following checker will be no-op if docker driver is not devicemapper
 	node.AddChecker(monitoring.NewDockerDevicemapperChecker(
 		monitoring.DockerDevicemapperConfig{
